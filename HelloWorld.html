@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewpoint" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+        <title>Hello World</title>
+
+        <!-- Load the Chart.js library -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.js"></script>
+        
+        <style>
+            html,
+            body,
+            #viewDiv {
+                padding: 0;
+                margin: 0;
+                height: 100%;
+                width: 100%;
+            }
+            /*
+                .buttons {
+                    position: absolute;
+                    bottom: 20px;
+                    left: 0;
+                    right: 0;
+                    text-align: center;
+                }
+            */
+            .esri-button {
+                display: inline;
+                background-color: black;
+                min-width: 200px;
+                max-width: 300px;
+            }
+            #paneDiv {
+                position: absolute;
+                top: 18px;
+                right: 18px;
+                padding: 18px;
+                background-color: rgba(0, 0, 0, 0.5);
+                color: white;
+            }
+            #selection {
+                position: absolute;
+                bottom: 20px;
+                left: 20px;
+                right: 20px;
+                display: flex;
+                justify-content: center;
+            }
+            #logoDiv {
+                padding: 12px;
+                background-color: transparent;
+                color: white;
+                text-align: center;
+                width: 400px;
+            }
+            button {
+                border: none;
+            }
+        </style>
+        
+        <!-- Require ArcGIS API -->
+        <link rel="stylesheet" href="https://js.arcgis.com/4.21/esri/themes/light/main.css" />
+        <script src="https://js.arcgis.com/4.21/"></script>
+
+        <script>
+            require([
+                "esri/config",
+                "esri/Map",
+                "esri/views/SceneView",
+                "esri/layers/SceneLayer",
+                "esri/layers/FeatureLayer",
+                "esri/layers/ElevationLayer",
+                "esri/layers/TileLayer",
+                "esri/widgets/Legend",
+                "esri/widgets/ShadowCast",   //  2021/11/13: Shadow Cast
+                "esri/widgets/Daylight"
+            ], function(esriConfig,Map, SceneView, SceneLayer, FeatureLayer, Legend, ElevationLayer, TileLayer, 
+                        ShadowCast, Daylight){
+
+                const elevationLayer = new ElevationLayer({
+                    url: "https://tiles.arcgis.com/tiles/yg9IFoJMgLZnSwbn/arcgis/rest/services/ESDEM_ProjectRaster1/ImageServer"
+                });
+                
+                const map = new Map({
+                    ground: elevationLayer,
+                    basemap: "arcgis-imagery"
+                });
+
+                
+                
+                /*
+                map.ground.when(() => {
+                    map.ground.layers.add(elevationLayer);
+                });
+                */
+                
+
+                const view = new SceneView({
+                    container: "viewDiv",
+                    map: map,
+                    qualityProfile: "high",
+                    environment: {      //  2021/11/13: Shadow Cast
+                        lighting: {
+                            date: new Date(),
+                            directShadowsEnabled: true  // Shadow Cast: false, DaylightWidget: True
+                        },
+                        atmosphere: {
+                            quality: "high"
+                        }
+                    },
+
+                    // Indicates to create a local scene
+                    viewingMode: "local",
+                    camera: {
+                        position: {
+                            x: 120.222,
+                            y: 22.995,
+                            z: 10000
+                        },
+                        tilt: 0
+                    }
+                });
+
+                const widget = new ShadowCast({ view });
+                view.ui.add(widget, "bottom-left");
+                widget.viewModel.date = new Date("November 13, 2021");
+
+                // SceneServer cannot display this layer due to problem of coordinate system
+                const buildingLayers = new SceneLayer({
+                    url:
+                        "https://services8.arcgis.com/yg9IFoJMgLZnSwbn/arcgis/rest/services/ESDEM_IntShp_Proje_Layer3D/SceneServer",
+                    visible: true
+                });
+                map.add(buildingLayers);
+
+                /*
+                var featureLayer = new FeatureLayer({
+                    url:
+                        "https://services8.arcgis.com/yg9IFoJMgLZnSwbn/arcgis/rest/services/ESBuildings_FeatureLayers/FeatureServer"
+                });
+                map.add(featureLayer);
+                */
+
+                var footprints_ESBuildings = new FeatureLayer({
+                    url:
+                        "https://services8.arcgis.com/yg9IFoJMgLZnSwbn/arcgis/rest/services/ESBuildings_InterShape/FeatureServer",
+                    renderer: {
+                        type: "simple",
+                        symbol: {
+                            type: "polygon-3d",
+                            symbolLayers: [
+                                {
+                                    type: "fill",
+                                    material: { color: [255, 237, 204]},
+                                    outline: { color: [133, 108, 62, 0.5]}
+                                }
+                            ]
+                        }
+                    },
+                    visible: false
+                });
+                map.add(footprints_ESBuildings);
+
+                var extruded_ESBuildings = new FeatureLayer({
+                    url: 
+                        "https://services8.arcgis.com/yg9IFoJMgLZnSwbn/arcgis/rest/services/ESBuildings_InterShape/FeatureServer",
+                    renderer: {
+                        type: "simple",
+                        symbol: {
+                            type: "polygon-3d",
+                            symbolLayers: [
+                                {
+                                    type: "extrude",
+                                    material: { color: [255, 237, 204] },
+                                    edges: {
+                                        type: "solid",
+                                        color: [133, 108, 62, 0.5],
+                                        size: 1
+                                    }
+                                }
+                            ]   
+                        },
+                        visualVarialbles: [
+                            {
+                                type: "size",
+                                field: "BUILD_H",
+                                valueUnit: "meters"
+                            }
+                        ]
+                    },
+                    visible: true
+                });
+                map.add(extruded_ESBuildings);
+
+                const daylightWidget = new Daylight ({
+                    view: view,
+                    playSpeedMultiplier: 2,
+                    visibleElements: {
+                        timezone: false
+                    }
+                });
+                
+                const btnDaylight = document.getElementById("buttonDaylight");
+
+                view.ui.add(btnDaylight, "top-right");
+                view.ui.add(daylightWidget, "top-right");
+
+                let widgetIsVisible = true;
+                btnDaylight.addEventListener("click", ()  => {
+                    if (widgetIsVisible) {
+                        view.ui.remove(daylightWidget);
+                        widgetIsVisible = false;
+                    }
+                    else {
+                        view.ui.add(daylightWidget, "top-right");
+                        widgetIsVisible = true;
+                    }
+                });
+
+                // places the logo div in the bottom right corner of the view
+                view.ui.add("logoDiv", "bottom-right");
+            
+                /*
+                document.getElementById("footprint").addEventListener("click", function (event){
+                    ESBuildings_Footprints.visible = true;
+                    extruded_ESBuildings.visible = false;
+                });
+                document.getElementById("extruded").addEventListener("click", function (event){
+                    ESBuildings_Footprints.visible = false;
+                    extruded_ESBuildings.visible = true;
+                });
+                document.getElementById("demInput").addEventListener("change", () =>{
+                    elevationLayer.visible = document.getElementById("demInput").checked;
+                });
+                */
+
+            });                        
+        </script>    
+    </head>
+
+        <body>
+            <div id="viewDiv">
+                <button id="buttonDaylight" class="esri-widget esri-widget--button">
+                    <span class="esri-icon-lightbulb"></span>
+                </button>
+                <!--
+                <div class="buttons">
+                    <button id="footprint" class="esri-button esri-button--secondary esri-button--half">Footprints</button>
+                    <button id="extruded" class="esri-button esri-button--secondary esri-button--half">Extruded footprints</button>
+                </div>
+                <div id="paneDiv" class="esri-widget">
+                    <div>
+                        <a>Tainan DEM</a>
+                    </div>
+                    <input id="demInput" type="checkbox" /> Use elevation data from 內政部國土測繪中心 
+                </div>
+                -->
+                <div id="selection"></div>
+                <div id="logoDiv" class="esri-widget">IGIS LAB</div>
+            </div>    
+        </body>
+</html>
